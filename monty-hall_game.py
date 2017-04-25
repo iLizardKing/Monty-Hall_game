@@ -2,6 +2,105 @@ import random
 from tkinter import *
 
 
+class MontyHallModel:
+    def __init__(self):
+        pass
+
+
+class MontyHallController:
+    def __init__(self, model):
+        self.model = model
+
+    def set_view(self, view):
+        self.view = view
+
+    def start(self):
+        self.view.draw_buttons()
+
+
+class MontyHallInterface(Frame):
+    def __init__(self, master=None, model=None, controller=None):
+        super().__init__(master)
+        self.pack(fill='both', expand=True)
+        self.master = master
+        self.model = model
+        self.controller = controller
+        self.controller.set_view(self)
+        self.buttons = []
+        self.mode_var = BooleanVar()
+        self.boxes_count_var = IntVar()
+        self.create_widgets()
+
+    def create_widgets(self):
+        # settings
+        settings_frame_parent = Frame(self, bg='grey')
+        settings_frame_child = Frame(settings_frame_parent, bg='grey')
+        self.mode_var.set(True)
+        tips_lab = Label(settings_frame_child, text='Tips:',
+                      bg='grey', font=('Consolas', '14'))
+        mode_check = Checkbutton(settings_frame_child,
+                                 variable=self.mode_var,
+                                 font=('Consolas', '14'),
+                                 bg='grey')
+        settings_lab = Label(settings_frame_child, text='Count of boxes:',
+                             bg='grey', font=('Consolas', '14'))
+        boxes_count_spinbox = Spinbox(settings_frame_child,
+                                      from_=3, to=10,
+                                      width=3,
+                                      textvariable=self.boxes_count_var,
+                                      font=('Consolas','18','bold'))
+        start_but = Button(settings_frame_child, text='START',
+                           command=self.controller.start,
+                           font=('Consolas', '16', 'bold'))
+        # guess boxes
+        score_frame = Frame(self, bg='red')
+        self.score_lab = Label(score_frame,
+                               bg='white',
+                               text='Wins: 00 | Fails: 00',
+                               font=('Consolas','18','bold'))
+        # boxes
+        frame_boxes_parent = Frame(self)
+        self.frame_boxes_child = Frame(frame_boxes_parent)
+        self.draw_buttons()
+        # PACKED
+        settings_frame_parent.pack(fill='x')
+        settings_frame_child.pack(fill='x', expand=True, padx=5, pady=5)
+        tips_lab.pack(side='left')
+        mode_check.pack(side='left')
+        settings_lab.pack(side='left', fill='x', expand=True)
+        boxes_count_spinbox.pack(side='left', fill='y', padx=5)
+        start_but.pack(side='left', fill='y')
+        score_frame.pack(fill='x')
+        self.score_lab.pack(fill='x')
+        frame_boxes_parent.pack(fill='both', expand=True)
+        self.frame_boxes_child.pack(expand=True, padx=15, pady=15)
+
+    def draw_buttons(self):
+        while self.buttons:
+            button = self.buttons.pop()
+            button.destroy()
+        for i in range(self.boxes_count_var.get()):
+            self.buttons.append(
+                Button(self.frame_boxes_child,
+                       text='\u2605',
+                       width=3,
+                       bd=5,
+                       font=('Consolas', '28', 'bold')))
+            self.buttons[i].pack(side='left', padx=5, pady=5)
+        master_width = 410 if i < 5 else 410+(i-4)*60
+        self.master.geometry(str(master_width)+'x200')
+        self.master.minsize(width=master_width, height=200)
+
+root = Tk()
+root.title('Monty Hall game')
+root.minsize(width=410, height=200)
+
+model = MontyHallModel()
+controller = MontyHallController(model)
+view = MontyHallInterface(root, model, controller)
+view.mainloop()
+
+
 class Monty_Hall_Game:
     def __init__(self, count=3, rounds=20):
         self.count = count
@@ -130,6 +229,6 @@ class Monty_Hall_Game:
         self.next_but['state'] = NORMAL
 
 
-play1 = Monty_Hall_Game(5)
-play1.root.mainloop()
+# play1 = Monty_Hall_Game(5)
+# play1.root.mainloop()
 
