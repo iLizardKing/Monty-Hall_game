@@ -5,11 +5,10 @@ from tkinter import *
 class MontyHallModel:
     def __init__(self):
         self.boxes = []
-        self.boxes_amount = 3  # for default
-        self.choice = None
-        self.round = 1
-        self.wins = 0
-        self.fails = 0
+        self.boxes_amount = None
+        self.round = None
+        self.wins = None
+        self.fails = None
 
     def start_game(self, boxes_amount=3):
         self.boxes_amount = boxes_amount
@@ -20,23 +19,21 @@ class MontyHallModel:
     def get_distribution(self):
         self.round += 1
         self.boxes = [0] * self.boxes_amount
-        self.choice = None
         prize = random.randint(0, self.boxes_amount - 1)
         self.boxes[prize] = 1
-        print(self.boxes)
+        print('Distribution:', self.boxes)
 
     def made_choice(self, choice):
-        self.choice = choice
-        if self.boxes[self.choice] == 1:
+        if self.boxes[choice] == 1:
             self.wins += 1
         else:
             self.fails += 1
 
-    def get_tips(self):
+    def get_tips(self, choice):
         boxes_to_open = list(range(len(self.boxes)))
-        del boxes_to_open[self.choice]
-        del boxes_to_open[random.choice(boxes_to_open)]
-        print(self.boxes, self.choice, boxes_to_open)
+        boxes_to_open.remove(choice)
+        boxes_to_open[self.boxes.index(1)]
+        print('final boxes to open', boxes_to_open)
         return boxes_to_open
 
 
@@ -57,13 +54,17 @@ class MontyHallController:
         self.view.draw_buttons()
 
     def choose(self, chosen_box):
-        self.model.made_choice(chosen_box)
+        print('Chosen box:', chosen_box)
         if self.with_tips:
-            pass
+            boxes_to_open = self.model.get_tips(chosen_box)
         else:
+            self.model.made_choice(chosen_box)
             self.view.refresh_score()
-            self.view.open_boxes(range(len(self.model.boxes)))
+            self.view.open_boxes(list(range(len(self.model.boxes))))
+        if self.model.round < self.rounds_amount:
             self.view.after(5000, self.new_round)
+        else:
+            self.view.stop_game()
 
     def new_round(self):
         self.model.get_distribution()
@@ -124,7 +125,6 @@ class MontyHallInterface(Frame):
         # boxes
         frame_boxes_parent = Frame(self)
         self.frame_boxes_child = Frame(frame_boxes_parent)
-        self.draw_buttons()
         # PACKED
         settings_frame_parent.pack(fill='x')
         settings_frame_child.pack(expand=True, padx=5, pady=5)
@@ -141,6 +141,10 @@ class MontyHallInterface(Frame):
         self.frame_boxes_child.pack(expand=True, padx=20, pady=20)
 
     def draw_buttons(self):
+        try:
+            self.result_lab.destroy()
+        except:
+            pass
         while self.buttons:
             button = self.buttons.pop()
             button.destroy()
@@ -148,10 +152,12 @@ class MontyHallInterface(Frame):
             self.buttons.append(
                 Button(self.frame_boxes_child,
                        text=str(i+1),
-                       command=lambda: self.controller.choose(i),
+                       command=lambda choice=i: self.controller.choose(choice),
                        width=3,
                        bg='black',
                        fg='white',
+                       activebackground='grey',
+                       activeforeground='grey',
                        bd=5,
                        font=('Consolas', '28', 'bold')))
             self.buttons[i].pack(side='left', padx=10)
@@ -165,15 +171,32 @@ class MontyHallInterface(Frame):
                self.rounds_count_var.get()
 
     def open_boxes(self, boxes_to_open):
+        print('boxes to open:', boxes_to_open)
         for box_num in boxes_to_open:
             self.buttons[box_num].config(
-                text='\u2605' if self.model.boxes[box_num] else '')
+                text='\uff04' if self.model.boxes[box_num] else '',
+                state='disabled',
+                disabledforeground='black',
+                bg='systembuttonface',
+                relief='sunken'
+            )
 
     def refresh_score(self):
         self.score_lab.config(text='Round: {:2} | Wins: {:2} | Fails: {:2}'.format(
             self.model.round,
             self.model.wins,
             self.model.fails))
+
+    def stop_game(self):
+        while self.buttons:
+            button = self.buttons.pop()
+            button.destroy()
+        self.result_lab = Label(self.frame_boxes_child,
+                                text='{:2}% of wins!'.format(
+                                    round(self.model.wins / self.model.round * 100)),
+                                font=('Consolas', '40', 'bold'))
+        self.result_lab.pack()
+
 
 root = Tk()
 root.title('Monty Hall game')
@@ -183,139 +206,3 @@ MH_model = MontyHallModel()
 MH_controller = MontyHallController(MH_model)
 MH_view = MontyHallInterface(root, MH_model, MH_controller)
 MH_view.mainloop()
-
-
-
-
-
-class Monty_Hall_Game:
-    def __init__(self, count=3, rounds=20):
-        self.count = count
-        self.round = 0
-        self.rounds_count = rounds
-        self.wins = 0
-        self.fails = 0
-        self.create_form()
-        self.get_distribution()
-
-    def create_form(self):
-        self.root = Tk()
-        self.root.title('Monty Hall paradox')
-        self.root.geometry('300x170+300+200')
-        self.fnt1 = ('Consolas', '18')
-        self.fnt2 = ('Consolas', '12')
-        self.score_lab = Label(self.root, font=self.fnt1)
-        self.score_lab['text'] = 'Score: {0}-{1}'.format(str(self.wins).zfill(2),
-                                                         str(self.fails).zfill(2))
-        self.score_lab.pack(side='top')
-        self.mess_lab = Label(self.root, font=self.fnt2)
-        self.mess_lab['text'] = 'Choose one of several elements:'
-        self.mess_lab.pack(side='top')
-        self.frame1 = Frame(self.root, height=100, width=300)
-        self.frame1.pack(side='top')
-        # buttons
-        self.option_but1 = Button(self.frame1, text='1', font=self.fnt1, bd=5, width=3,
-                                  command=lambda: self.choose(0))
-        self.option_but1.pack(side='left')
-        self.option_but2 = Button(self.frame1, text='2', font=self.fnt1, bd=5, width=3,
-                                  command=lambda: self.choose(1))
-        self.option_but2.pack(side='left')
-        self.option_but3 = Button(self.frame1, text='3', font=self.fnt1, bd=5, width=3,
-                                  command=lambda: self.choose(2))
-        self.option_but3.pack(side='left')
-        self.buttons = [self.option_but1, self.option_but2, self.option_but3]
-        self.next_but = Button(self.root, text='Next', font=self.fnt2, bd=5, width=5,
-                               command=self.next_round)
-        self.next_but.pack(side='bottom')
-
-    def get_distribution(self):
-        self.option_but1['bg'] = '#FFFFFF'
-        self.option_but2['bg'] = '#FFFFFF'
-        self.option_but3['bg'] = '#FFFFFF'
-        self.next_but['state'] = DISABLED
-        self.option_but1['state'] = NORMAL
-        self.option_but2['state'] = NORMAL
-        self.option_but3['state'] = NORMAL
-        self.boxes = [0] * self.count
-        self.choice = -1
-        self.empty_box = -1
-        self.round += 1
-        prize = random.randint(0, self.count - 1)
-        self.boxes[prize] = 1
-        print(self.boxes)
-
-    def next_round(self):
-        if self.round < self.rounds_count:
-            self.get_distribution()
-            self.mess_lab['text'] = 'Choose one of several elements:'
-        else:
-            self.mess_lab['text'] = 'Game is over!'
-            self.option_but1['state'] = DISABLED
-            self.option_but2['state'] = DISABLED
-            self.option_but3['state'] = DISABLED
-            self.next_but['state'] = DISABLED
-
-    def choose(self, choice):
-        if self.choice == -1:
-            if choice == 0:
-                self.choice = 0
-                self.option_but1['bg'] = '#9090FF'
-            elif choice == 1:
-                self.choice = 1
-                self.option_but2['bg'] = '#9090FF'
-            else:
-                self.choice = 2
-                self.option_but3['bg'] = '#9090FF'
-            self.open_empty_boxes()
-            self.mess_lab['text'] = 'Change your choice?'
-        else:
-            if choice == 0:
-                self.choice = 0
-                self.get_result()
-            elif choice == 1:
-                self.choice = 1
-                self.get_result()
-            else:
-                self.choice = 2
-                self.get_result()
-            self.option_but1['state'] = DISABLED
-            self.option_but2['state'] = DISABLED
-            self.option_but3['state'] = DISABLED
-
-    def open_empty_boxes(self):
-        side = random.choice([True, False])
-        if side:
-            for i in range(3):
-                if self.boxes[i] == 0 and i != self.choice:
-                    self.empty_box = i
-                    self.buttons[i]['bg'] = '#FF9090'
-                    break
-        else:
-            for i in range(2, -1, -1):
-                if self.boxes[i] == 0 and i != self.choice:
-                    self.empty_box = i
-                    self.buttons[i]['bg'] = '#FF9090'
-                    break
-
-    def get_result(self):
-        for i in range(3):
-            if self.boxes[i] == 1:
-                self.buttons[i]['bg'] = '#90FF90'
-            else:
-                self.buttons[i]['bg'] = '#FF9090'
-        if self.boxes[self.choice] == 1:
-            self.wins += 1
-            self.mess_lab['text'] = 'You win!'
-            self.score_lab['text'] = 'Score: {0}-{1}'.format(str(self.wins).zfill(2),
-                                                             str(self.fails).zfill(2))
-        else:
-            self.fails += 1
-            self.mess_lab['text'] = 'You lose...'
-            self.score_lab['text'] = 'Score: {0}-{1}'.format(str(self.wins).zfill(2),
-                                                             str(self.fails).zfill(2))
-        self.next_but['state'] = NORMAL
-
-
-# play1 = Monty_Hall_Game(5)
-# play1.root.mainloop()
-
