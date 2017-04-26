@@ -4,17 +4,70 @@ from tkinter import *
 
 class MontyHallModel:
     def __init__(self):
-        pass
+        self.boxes = []
+        self.boxes_amount = 3  # for default
+        self.choice = None
+        self.round = 1
+        self.wins = 0
+        self.fails = 0
+
+    def start_game(self, boxes_amount=3):
+        self.boxes_amount = boxes_amount
+        self.round = 0
+        self.wins = 0
+        self.fails = 0
+
+    def get_distribution(self):
+        self.round += 1
+        self.boxes = [0] * self.boxes_amount
+        self.choice = None
+        prize = random.randint(0, self.boxes_amount - 1)
+        self.boxes[prize] = 1
+        print(self.boxes)
+
+    def made_choice(self, choice):
+        self.choice = choice
+        if self.boxes[self.choice] == 1:
+            self.wins += 1
+        else:
+            self.fails += 1
+
+    def get_tips(self):
+        boxes_to_open = list(range(len(self.boxes)))
+        del boxes_to_open[self.choice]
+        del boxes_to_open[random.choice(boxes_to_open)]
+        print(self.boxes, self.choice, boxes_to_open)
+        return boxes_to_open
 
 
 class MontyHallController:
     def __init__(self, model):
         self.model = model
+        self.with_tips = True
+        self.rounds_amount = None
 
     def set_view(self, view):
         self.view = view
 
     def start(self):
+        self.with_tips, boxes_amount, self.rounds_amount = self.view.get_settings()
+        self.model.start_game(boxes_amount)
+        self.model.get_distribution()
+        self.view.refresh_score()
+        self.view.draw_buttons()
+
+    def choose(self, chosen_box):
+        self.model.made_choice(chosen_box)
+        if self.with_tips:
+            pass
+        else:
+            self.view.refresh_score()
+            self.view.open_boxes(range(len(self.model.boxes)))
+            self.view.after(5000, self.new_round)
+
+    def new_round(self):
+        self.model.get_distribution()
+        self.view.refresh_score()
         self.view.draw_buttons()
 
 
@@ -28,21 +81,31 @@ class MontyHallInterface(Frame):
         self.controller.set_view(self)
         self.buttons = []
         self.mode_var = BooleanVar()
+        self.mode_var.set(True)
         self.boxes_count_var = IntVar()
+        self.boxes_count_var.set(3)
+        self.rounds_count_var = IntVar()
+        self.rounds_count_var.set(20)
         self.create_widgets()
 
     def create_widgets(self):
         # settings
         settings_frame_parent = Frame(self, bg='grey')
         settings_frame_child = Frame(settings_frame_parent, bg='grey')
-        self.mode_var.set(True)
         tips_lab = Label(settings_frame_child, text='Tips:',
                       bg='grey', font=('Consolas', '14'))
         mode_check = Checkbutton(settings_frame_child,
                                  variable=self.mode_var,
                                  font=('Consolas', '14'),
                                  bg='grey')
-        settings_lab = Label(settings_frame_child, text='Count of boxes:',
+        rounds_count_lab = Label(settings_frame_child, text='Rounds:',
+                             bg='grey', font=('Consolas', '14'))
+        rounds_count_spinbox = Spinbox(settings_frame_child,
+                                      from_=1, to=100,
+                                      width=3,
+                                      textvariable=self.rounds_count_var,
+                                      font=('Consolas','18','bold'))
+        boxes_count_lab = Label(settings_frame_child, text='Boxes:',
                              bg='grey', font=('Consolas', '14'))
         boxes_count_spinbox = Spinbox(settings_frame_child,
                                       from_=3, to=10,
@@ -56,7 +119,7 @@ class MontyHallInterface(Frame):
         score_frame = Frame(self, bg='red')
         self.score_lab = Label(score_frame,
                                bg='white',
-                               text='Wins: 00 | Fails: 00',
+                               text='Round: 00 | Wins: 00 | Fails: 00',
                                font=('Consolas','18','bold'))
         # boxes
         frame_boxes_parent = Frame(self)
@@ -64,41 +127,65 @@ class MontyHallInterface(Frame):
         self.draw_buttons()
         # PACKED
         settings_frame_parent.pack(fill='x')
-        settings_frame_child.pack(fill='x', expand=True, padx=5, pady=5)
+        settings_frame_child.pack(expand=True, padx=5, pady=5)
         tips_lab.pack(side='left')
         mode_check.pack(side='left')
-        settings_lab.pack(side='left', fill='x', expand=True)
-        boxes_count_spinbox.pack(side='left', fill='y', padx=5)
-        start_but.pack(side='left', fill='y')
+        rounds_count_lab.pack(side='left')
+        rounds_count_spinbox.pack(side='left', fill='y')
+        boxes_count_lab.pack(side='left')
+        boxes_count_spinbox.pack(side='left', fill='y')
+        start_but.pack(side='left', fill='y', padx=5)
         score_frame.pack(fill='x')
         self.score_lab.pack(fill='x')
         frame_boxes_parent.pack(fill='both', expand=True)
-        self.frame_boxes_child.pack(expand=True, padx=15, pady=15)
+        self.frame_boxes_child.pack(expand=True, padx=20, pady=20)
 
     def draw_buttons(self):
         while self.buttons:
             button = self.buttons.pop()
             button.destroy()
-        for i in range(self.boxes_count_var.get()):
+        for i in range(self.model.boxes_amount):
             self.buttons.append(
                 Button(self.frame_boxes_child,
-                       text='\u2605',
+                       text=str(i+1),
+                       command=lambda: self.controller.choose(i),
                        width=3,
+                       bg='black',
+                       fg='white',
                        bd=5,
                        font=('Consolas', '28', 'bold')))
-            self.buttons[i].pack(side='left', padx=5, pady=5)
-        master_width = 410 if i < 5 else 410+(i-4)*60
-        self.master.geometry(str(master_width)+'x200')
-        self.master.minsize(width=master_width, height=200)
+            self.buttons[i].pack(side='left', padx=10)
+        master_width = 450 if i < 4 else 450+(i-3)*100
+        self.master.geometry('{}x{}'.format(master_width, 240))
+        self.master.minsize(width=master_width, height=240)
+
+    def get_settings(self):
+        return self.mode_var.get(),\
+               self.boxes_count_var.get(),\
+               self.rounds_count_var.get()
+
+    def open_boxes(self, boxes_to_open):
+        for box_num in boxes_to_open:
+            self.buttons[box_num].config(
+                text='\u2605' if self.model.boxes[box_num] else '')
+
+    def refresh_score(self):
+        self.score_lab.config(text='Round: {:2} | Wins: {:2} | Fails: {:2}'.format(
+            self.model.round,
+            self.model.wins,
+            self.model.fails))
 
 root = Tk()
 root.title('Monty Hall game')
-root.minsize(width=410, height=200)
+root.minsize(width=450, height=240)
 
-model = MontyHallModel()
-controller = MontyHallController(model)
-view = MontyHallInterface(root, model, controller)
-view.mainloop()
+MH_model = MontyHallModel()
+MH_controller = MontyHallController(MH_model)
+MH_view = MontyHallInterface(root, MH_model, MH_controller)
+MH_view.mainloop()
+
+
+
 
 
 class Monty_Hall_Game:
