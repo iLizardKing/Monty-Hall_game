@@ -9,6 +9,7 @@ class MontyHallModel:
         self.round = None
         self.wins = None
         self.fails = None
+        self.choice = None
 
     def start_game(self, boxes_amount=3):
         self.boxes_amount = boxes_amount
@@ -17,14 +18,15 @@ class MontyHallModel:
         self.fails = 0
 
     def get_distribution(self):
+        self.choice = None
         self.round += 1
         self.boxes = [0] * self.boxes_amount
         prize = random.randint(0, self.boxes_amount - 1)
         self.boxes[prize] = 1
-        print('Distribution:', self.boxes)
 
     def made_choice(self, choice):
-        if self.boxes[choice] == 1:
+        self.choice = choice
+        if self.boxes[self.choice] == 1:
             self.wins += 1
         else:
             self.fails += 1
@@ -32,16 +34,20 @@ class MontyHallModel:
     def get_tips(self, choice):
         boxes_to_open = list(range(len(self.boxes)))
         boxes_to_open.remove(choice)
-        boxes_to_open[self.boxes.index(1)]
-        print('final boxes to open', boxes_to_open)
+        if choice == self.boxes.index(1):
+            boxes_to_open.remove(random.choice(boxes_to_open))
+        else:
+            boxes_to_open.remove(self.boxes.index(1))
         return boxes_to_open
 
 
 class MontyHallController:
-    def __init__(self, model):
+    def __init__(self, model=None, view=None):
         self.model = model
+        self.view = view
         self.with_tips = True
         self.rounds_amount = None
+        self.is_final_guess = True
 
     def set_view(self, view):
         self.view = view
@@ -49,6 +55,10 @@ class MontyHallController:
     def start(self):
         self.with_tips, boxes_amount, self.rounds_amount = self.view.get_settings()
         self.model.start_game(boxes_amount)
+        self.new_round()
+
+    def new_round(self):
+        self.is_final_guess = True
         self.model.get_distribution()
         self.view.refresh_score()
         self.view.draw_buttons()
@@ -56,20 +66,18 @@ class MontyHallController:
     def choose(self, chosen_box):
         print('Chosen box:', chosen_box)
         if self.with_tips:
-            boxes_to_open = self.model.get_tips(chosen_box)
-        else:
+            self.is_final_guess = not self.is_final_guess
+        if self.is_final_guess:
             self.model.made_choice(chosen_box)
             self.view.refresh_score()
             self.view.open_boxes(list(range(len(self.model.boxes))))
-        if self.model.round < self.rounds_amount:
-            self.view.after(5000, self.new_round)
+            if self.model.round < self.rounds_amount:
+                self.view.after(5000, self.new_round)
+            else:
+                self.view.stop_game()
         else:
-            self.view.stop_game()
-
-    def new_round(self):
-        self.model.get_distribution()
-        self.view.refresh_score()
-        self.view.draw_buttons()
+            boxes_to_open = self.model.get_tips(chosen_box)
+            self.view.open_boxes(boxes_to_open)
 
 
 class MontyHallInterface(Frame):
@@ -81,6 +89,9 @@ class MontyHallInterface(Frame):
         self.controller = controller
         self.controller.set_view(self)
         self.buttons = []
+        # widgets
+        self.score_lab = None
+        self.frame_boxes_child = None
         self.mode_var = BooleanVar()
         self.mode_var.set(True)
         self.boxes_count_var = IntVar()
@@ -94,20 +105,20 @@ class MontyHallInterface(Frame):
         settings_frame_parent = Frame(self, bg='grey')
         settings_frame_child = Frame(settings_frame_parent, bg='grey')
         tips_lab = Label(settings_frame_child, text='Tips:',
-                      bg='grey', font=('Consolas', '14'))
+                         bg='grey', font=('Consolas', '14'))
         mode_check = Checkbutton(settings_frame_child,
                                  variable=self.mode_var,
                                  font=('Consolas', '14'),
                                  bg='grey')
         rounds_count_lab = Label(settings_frame_child, text='Rounds:',
-                             bg='grey', font=('Consolas', '14'))
+                                 bg='grey', font=('Consolas', '14'))
         rounds_count_spinbox = Spinbox(settings_frame_child,
                                       from_=1, to=100,
                                       width=3,
                                       textvariable=self.rounds_count_var,
                                       font=('Consolas','18','bold'))
         boxes_count_lab = Label(settings_frame_child, text='Boxes:',
-                             bg='grey', font=('Consolas', '14'))
+                                bg='grey', font=('Consolas', '14'))
         boxes_count_spinbox = Spinbox(settings_frame_child,
                                       from_=3, to=10,
                                       width=3,
@@ -143,7 +154,7 @@ class MontyHallInterface(Frame):
     def draw_buttons(self):
         try:
             self.result_lab.destroy()
-        except:
+        except AttributeError:
             pass
         while self.buttons:
             button = self.buttons.pop()
@@ -156,8 +167,8 @@ class MontyHallInterface(Frame):
                        width=3,
                        bg='black',
                        fg='white',
-                       activebackground='grey',
-                       activeforeground='grey',
+                       activebackground='#ffddaa',
+                       activeforeground='black',
                        bd=5,
                        font=('Consolas', '28', 'bold')))
             self.buttons[i].pack(side='left', padx=10)
@@ -171,15 +182,16 @@ class MontyHallInterface(Frame):
                self.rounds_count_var.get()
 
     def open_boxes(self, boxes_to_open):
-        print('boxes to open:', boxes_to_open)
         for box_num in boxes_to_open:
+            color = '#bed6be' if self.model.boxes[box_num] else \
+                    '#ffddaa' if box_num == self.model.choice else \
+                    'systembuttonface'
             self.buttons[box_num].config(
                 text='\uff04' if self.model.boxes[box_num] else '',
                 state='disabled',
                 disabledforeground='black',
-                bg='systembuttonface',
-                relief='sunken'
-            )
+                bg=color,
+                relief='sunken')
 
     def refresh_score(self):
         self.score_lab.config(text='Round: {:2} | Wins: {:2} | Fails: {:2}'.format(
