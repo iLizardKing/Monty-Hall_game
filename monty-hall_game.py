@@ -34,10 +34,11 @@ class MontyHallModel:
     def get_tips(self, choice):
         boxes_to_open = list(range(len(self.boxes)))
         boxes_to_open.remove(choice)
-        if choice == self.boxes.index(1):
+        right_answ = self.boxes.index(1)
+        if choice == right_answ:
             boxes_to_open.remove(random.choice(boxes_to_open))
         else:
-            boxes_to_open.remove(self.boxes.index(1))
+            boxes_to_open.remove(right_answ)
         return boxes_to_open
 
 
@@ -48,11 +49,14 @@ class MontyHallController:
         self.with_tips = True
         self.rounds_amount = None
         self.is_final_guess = True
+        self.after_id = None
 
     def set_view(self, view):
         self.view = view
 
     def start(self):
+        if self.after_id:
+            self.view.after_cancel(self.after_id)
         self.with_tips, boxes_amount, self.rounds_amount = self.view.get_settings()
         self.model.start_game(boxes_amount)
         self.new_round()
@@ -64,7 +68,6 @@ class MontyHallController:
         self.view.draw_buttons()
 
     def choose(self, chosen_box):
-        print('Chosen box:', chosen_box)
         if self.with_tips:
             self.is_final_guess = not self.is_final_guess
         if self.is_final_guess:
@@ -72,7 +75,7 @@ class MontyHallController:
             self.view.refresh_score()
             self.view.open_boxes(list(range(len(self.model.boxes))))
             if self.model.round < self.rounds_amount:
-                self.view.after(5000, self.new_round)
+                self.after_id = self.view.after(5000, self.new_round)
             else:
                 self.view.stop_game()
         else:
@@ -217,4 +220,5 @@ root.minsize(width=450, height=240)
 MH_model = MontyHallModel()
 MH_controller = MontyHallController(MH_model)
 MH_view = MontyHallInterface(root, MH_model, MH_controller)
+
 MH_view.mainloop()
